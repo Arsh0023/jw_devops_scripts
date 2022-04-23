@@ -1,0 +1,14 @@
+systemctl stop mysqld
+systemctl set-environment MYSQLD_OPTS="--skip-grant-tables"
+systemctl start mysqld
+mysql -u root
+mysql -u root
+systemctl stop mysqld
+systemctl unset-environment MYSQLD_OPTS
+systemctl start mysqld
+mysql -u root -p
+UPDATE mysql.user SET authentication_string = PASSWORD('MyNewPassword') WHERE User = 'root' AND Host = 'localhost';
+SET PASSWORD = PASSWORD('MyNewPassword') #after setting the pwd.
+
+systemctl unset-environment MYSQLD_OPTS
+systemctl start mysqld

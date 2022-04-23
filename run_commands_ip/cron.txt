@@ -1,0 +1,10 @@
+##### Standard Cron scripts ######### 
+
+0 */6 * * * /bin/bash /root/scripts/update_ami.sh
+0 0 * * * /bin/bash /root/scripts/delete_ami.sh
+
+##PM2 Restart
+* * * * * /bin/bash /root/scripts/pm2_restart.sh
+
+######### Delete Launch Template ######### 
+0 0 * * * /bin/bash /root/scripts/deleteTemplateOld.sh

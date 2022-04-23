@@ -1,0 +1,57 @@
+#! /bin/bash
+
+echo "########################" >> /home/root/.bashrc
+echo "########################" >> /home/ec2-user/.bashrc
+echo "########################" >> /apps/pm2/.bashrc
+
+if [ -f '/apps/yelo/.bashrc']
+then
+    echo "########################" >> /apps/yelo/.bashrc
+fi
+
+
+echo "installing mysql"
+sudo yum remove -y mariadb-libs
+sudo rpm --import https://repo.mysql.com/RPM-GPG-KEY-mysql-2022
+sudo yum localinstall -y https://dev.mysql.com/get/mysql57-community-release-el7-9.noarch.rpm
+sudo yum install -y mysql-community-server
+sed -i.bak "s/datadir=.*/datadir=\/apps\/mysql/g" /etc/my.cnf
+chown -R mysql. /apps/mysql
+echo " #sql_mode='' " > /etc/my.cnf
+service mysqld start
+initialpassword="`grep 'temporary.*root@localhost' /var/log/mysqld.log | tail -n 1 | sed 's/.*root@localhost: //'`"
+password=`openssl rand 14 -base64`
+passworduser=`openssl rand 14 -base64`
+echo "MySQL password is $password"
+echo "MySQL password is $passworduser:"
+sleep 5
+cd /tmp/data/devops/cf-yelo
+echo "mysql passing password to mysqldb.sh"
+pwd
+mysqldb=${server}_${env}
+mysqldbauth='auth'_${env}
+mysqldbpayment='payment'_${env}
+sudo sed -i -e "s/password/$password/g" mysqldb.sh
+mysqladmin -u root --password=${initialpassword} password $password:
+mysql -u root -p$password: -e "CREATE USER '$server'@'localhost' IDENTIFIED BY '$passworduser:';CREATE DATABASE $mysqldb;CREATE DATABASE $mysqldbauth; CREATE DATABASE $mysqldbpayment;GRANT SELECT, INSERT, UPDATE, DELETE, CREATE, DROP, REFERENCES, INDEX, ALTER, CREATE TEMPORARY TABLES, CREATE VIEW, EVENT, TRIGGER, SHOW VIEW, CREATE ROUTINE, ALTER ROUTINE, EXECUTE ON $mysqldb.* TO '$server'@'localhost'; GRANT SELECT, INSERT, UPDATE, DELETE, CREATE, DROP, REFERENCES, INDEX, ALTER, CREATE TEMPORARY TABLES, CREATE VIEW, EVENT, TRIGGER, SHOW VIEW, CREATE ROUTINE, ALTER ROUTINE, EXECUTE ON $mysqldbauth.* TO '$server'@'localhost'; GRANT SELECT, INSERT, UPDATE, DELETE, CREATE, DROP, REFERENCES, INDEX, ALTER, CREATE TEMPORARY TABLES, CREATE VIEW, EVENT, TRIGGER, SHOW VIEW, CREATE ROUTINE, ALTER ROUTINE, EXECUTE ON $mysqldbpayment.* TO '$server'@'localhost'; FLUSH PRIVILEGES;"
+sleep 10
+
+echo "export DATABASE_HOST=localhost">> /apps/pm2/.bashrc
+echo "export ADMIN_MYSQL_USER=root">> /home/ec2-user/.bashrc
+echo "export ADMIN_MYSQL_PASS=$password:">> /home/ec2-user/.bashrc
+echo "export MYSQL_USER=$server">> /apps/pm2/.bashrc
+echo "export MYSQL_PASS=$passworduser:">> /apps/pm2/.bashrc
+echo "export MYSQL_DBNAME=$mysqldb">> /apps/pm2/.bashrc
+echo "export MYSQL_PAYMENT_DBNAME=$mysqldbpayment">> /apps/pm2/.bashrc
+echo "export AUTH_DBNAME=$mysqldbauth" >> /apps/pm2/.bashrc
+
+echo "Installing phpmyadmin"
+sudo amazon-linux-extras install -y lamp-mariadb10.2-php7.2 php7.2
+cd /var/www/html
+sudo wget https://files.phpmyadmin.net/phpMyAdmin/5.0.3/phpMyAdmin-5.0.3-all-languages.zip
+sudo unzip phpMyAdmin-5.0.3-all-languages.zip
+sudo mv phpMyAdmin-5.0.3-all-languages phpmyadmin
+sudo rm -rf phpMyAdmin-5.0.3-all-languages.zip
+sudo yum install -y php-mbstring
+
+sudo yum install -y mod24_ssl
